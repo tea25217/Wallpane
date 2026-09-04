@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build a x86_64 AppImage. Run on Linux (Ubuntu 22.04 is a good glibc baseline).
+# Build an x86_64 AppImage that starts on LMDE 7 without host libfuse2.
+# Run on Linux (Ubuntu 22.04 is a good glibc baseline).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -8,6 +9,9 @@ cd "$ROOT"
 ARCH="${ARCH:-x86_64}"
 APP_NAME="Wallpane"
 VERSION="$(python3 -c "from pathlib import Path; import re; t=Path('pyproject.toml').read_text(); print(re.search(r'^version = \"([^\"]+)\"', t, re.M).group(1))")"
+URUNTIME_VERSION="${URUNTIME_VERSION:-0.6.1}"
+APPIMAGETOOL_URL="${APPIMAGETOOL_URL:-https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${ARCH}.AppImage}"
+URUNTIME_URL="${URUNTIME_URL:-https://github.com/VHSgunzo/uruntime/releases/download/v${URUNTIME_VERSION}/uruntime-appimage-squashfs-lite-${ARCH}}"
 
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt pyinstaller
@@ -28,38 +32,48 @@ pyinstaller --noconfirm --clean \
   --add-data "src/wallpane/resources:wallpane/resources" \
   src/wallpane/__main__.py
 
+if [[ ! -x dist/wallpane/wallpane ]]; then
+  echo "PyInstaller did not produce dist/wallpane/wallpane" >&2
+  exit 1
+fi
+
 rm -rf AppDir
-mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+mkdir -p \
+  AppDir/usr/bin \
+  AppDir/usr/share/applications \
+  AppDir/usr/share/icons/hicolor/256x256/apps
 
 cp -a dist/wallpane/. AppDir/usr/bin/
+chmod +x AppDir/usr/bin/wallpane
+install -m 0755 packaging/AppRun AppDir/AppRun
+cp packaging/wallpane.desktop AppDir/wallpane.desktop
 cp packaging/wallpane.desktop AppDir/usr/share/applications/wallpane.desktop
-cp packaging/wallpane.png AppDir/usr/share/icons/hicolor/256x256/apps/wallpane.png
 cp packaging/wallpane.png AppDir/wallpane.png
+cp packaging/wallpane.png AppDir/usr/share/icons/hicolor/256x256/apps/wallpane.png
 
-# linuxdeploy expects the executable name to match Exec=
-if [[ -f AppDir/usr/bin/wallpane ]]; then
-  chmod +x AppDir/usr/bin/wallpane
+# Do not run linuxdeploy against the PyInstaller tree: it rewrites RPATH /
+# LD_LIBRARY_PATH and commonly breaks bundled Qt on the target distro.
+
+curl -L --fail -o "appimagetool-${ARCH}.AppImage" "$APPIMAGETOOL_URL"
+chmod +x "appimagetool-${ARCH}.AppImage"
+curl -L --fail -o uruntime "$URUNTIME_URL"
+chmod +x uruntime
+
+# Try FUSE, then extract-and-run so Debian 13 / LMDE 7 work without libfuse2.
+if grep -aq 'URUNTIME_EXTRACT=[0-9]' uruntime; then
+  sed -i 's|URUNTIME_EXTRACT=[0-9]|URUNTIME_EXTRACT=2|' uruntime
+else
+  echo "uruntime is missing URUNTIME_EXTRACT marker" >&2
+  exit 1
 fi
 
-if [[ ! -x linuxdeploy-${ARCH}.AppImage ]]; then
-  curl -L -o "linuxdeploy-${ARCH}.AppImage" \
-    "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${ARCH}.AppImage"
-  chmod +x "linuxdeploy-${ARCH}.AppImage"
-fi
-
-# Extract to avoid FUSE in CI.
-./linuxdeploy-${ARCH}.AppImage --appimage-extract >/dev/null
-export LINUXDEPLOY_OUTPUT_VERSION="${VERSION}"
-./squashfs-root/AppRun \
-  --appdir AppDir \
-  --executable AppDir/usr/bin/wallpane \
-  --desktop-file AppDir/usr/share/applications/wallpane.desktop \
-  --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/wallpane.png \
-  --output appimage
+export APPIMAGE_EXTRACT_AND_RUN=1
+./appimagetool-${ARCH}.AppImage --appimage-extract >/dev/null
 
 mkdir -p dist
-mv -f ${APP_NAME}*.AppImage "dist/Wallpane-${VERSION}-${ARCH}.AppImage" 2>/dev/null || \
-  mv -f Wallpane*.AppImage "dist/Wallpane-${VERSION}-${ARCH}.AppImage" 2>/dev/null || \
-  mv -f wallpane*.AppImage "dist/Wallpane-${VERSION}-${ARCH}.AppImage"
+OUT="dist/${APP_NAME}-${VERSION}-${ARCH}.AppImage"
+ARCH="$ARCH" VERSION="$VERSION" \
+  ./squashfs-root/AppRun --no-appstream --runtime-file "$ROOT/uruntime" AppDir "$OUT"
 
-echo "Wrote dist/Wallpane-${VERSION}-${ARCH}.AppImage"
+chmod +x "$OUT"
+echo "Wrote $OUT"

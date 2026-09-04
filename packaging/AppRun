@@ -1,0 +1,68 @@
+#!/bin/bash
+# AppImage entrypoint. Keep this independent of linuxdeploy so PyInstaller's
+# bundled Qt/Python layout is not rewritten with host library paths.
+set -u
+
+SELF="$(readlink -f "$0")"
+HERE="${SELF%/*}"
+BIN="$HERE/usr/bin/wallpane"
+
+export QTWEBENGINE_DISABLE_SANDBOX=1
+
+for plugins in \
+  "$HERE/usr/bin/_internal/PySide6/Qt/plugins" \
+  "$HERE/usr/bin/_internal/PySide6/Qt6/plugins"
+do
+  if [ -d "$plugins" ]; then
+    export QT_PLUGIN_PATH="$plugins"
+    export QT_QPA_PLATFORM_PLUGIN_PATH="$plugins/platforms"
+    break
+  fi
+done
+
+if [ -d "$HERE/usr/bin/_internal" ]; then
+  export LD_LIBRARY_PATH="$HERE/usr/bin/_internal${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+
+# Cinnamon on LMDE defaults to X11. Do not override an explicit choice.
+if [ -z "${QT_QPA_PLATFORM:-}" ] && [ -n "${DISPLAY:-}" ]; then
+  export QT_QPA_PLATFORM=xcb
+fi
+
+LOGDIR="${XDG_CACHE_HOME:-$HOME/.cache}/wallpane"
+mkdir -p "$LOGDIR"
+LOG="$LOGDIR/launch.log"
+
+if [ ! -x "$BIN" ]; then
+  echo "Wallpane binary is missing: $BIN" >&2
+  exit 127
+fi
+
+if [ -t 2 ]; then
+  exec "$BIN" "$@"
+fi
+
+{
+  echo "==== $(date -Iseconds) ===="
+  echo "args: $*"
+  echo "HERE=$HERE"
+} >>"$LOG"
+
+set +e
+"$BIN" "$@" >>"$LOG" 2>&1
+status=$?
+set -e
+
+if [ "$status" -ne 0 ]; then
+  msg="Wallpane の起動に失敗しました (終了コード ${status})。
+ログ: ${LOG}"
+  if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+    if command -v zenity >/dev/null 2>&1; then
+      zenity --error --no-wrap --text="$msg" || true
+    elif command -v notify-send >/dev/null 2>&1; then
+      notify-send "Wallpane" "$msg" || true
+    fi
+  fi
+fi
+
+exit "$status"

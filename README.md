@@ -49,20 +49,22 @@ python -m wallpane apply 'HDMI-1=~/Pictures/left.jpg:cover' 'DP-1=~/Pictures/rig
 
 ## AppImage
 
-[Releases](https://github.com/tea25217/Wallpane/releases) から `Wallpane-*-x86_64.AppImage` を入手できます。LMDE では:
+[Releases](https://github.com/tea25217/Wallpane/releases) から `Wallpane-*-x86_64.AppImage` を入手できます。
+
+ブラウザのダウンロードは実行権限が付かないことが多いので、先に付けます。
 
 ```bash
 chmod +x Wallpane-*-x86_64.AppImage
 ./Wallpane-*-x86_64.AppImage
 ```
 
+Nemo からダブルクリックする場合は、プロパティ → 実行を許可、でも同じです。0.1.1 以降は LMDE 7 既定の FUSE 3 のみでも起動する想定です。失敗時は `~/.cache/wallpane/launch.log` を見てください。
+
 自分でビルドする場合は **Linux 上**（glibc が LMDE 7 以下なら Ubuntu 22.04 が無難）で:
 
 ```bash
 bash scripts/build-appimage.sh
 ```
-
-FUSE が使えない場合は AppImage を `--appimage-extract` して中の `AppRun` を実行してください。
 
 ## 壁紙の適用方法
 

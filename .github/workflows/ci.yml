@@ -61,6 +61,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libfuse2 file curl
       - name: Build AppImage
         run: bash scripts/build-appimage.sh
+      - name: Smoke-test AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          chmod +x dist/*.AppImage
+          dist/Wallpane-*-x86_64.AppImage --version
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

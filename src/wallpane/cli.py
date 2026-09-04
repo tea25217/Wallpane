@@ -119,9 +119,13 @@ def main(argv: list[str] | None = None) -> int:
         print(dest)
         return 0
 
-    from wallpane.gui import run_gui
+    try:
+        from wallpane.gui import run_gui
 
-    return run_gui()
+        return run_gui()
+    except Exception as exc:
+        print(f"Wallpane failed to start: {exc}", file=sys.stderr)
+        return 1
 
 
 def _normalize_hex(value: str) -> str:
