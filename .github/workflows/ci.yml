@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
+      - name: Test
+        run: python -m pytest -q
+
+  appimage:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: System deps
+        run: sudo apt-get update && sudo apt-get install -y libfuse2 file
+      - name: Build AppImage
+        run: bash scripts/build-appimage.sh
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/*.AppImage
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.AppImage

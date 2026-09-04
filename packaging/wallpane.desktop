@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Wallpane
+Name[ja]=Wallpane
+GenericName=Wallpaper setter
+GenericName[ja]=壁紙セッター
+Comment=Set a different wallpaper on each display
+Comment[ja]=ディスプレイごとに別々の壁紙を設定します
+Exec=wallpane
+Icon=wallpane
+Terminal=false
+Categories=Settings;DesktopSettings;Utility;
+StartupNotify=true
+MimeType=image/jpeg;image/png;image/webp;image/bmp;image/tiff;
+Keywords=wallpaper;background;monitor;display;cinnamon;lmde;
