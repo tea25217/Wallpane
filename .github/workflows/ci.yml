@@ -22,25 +22,51 @@ jobs:
       - name: Test
         run: python -m pytest -q
 
-  appimage:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+  github-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: test
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          name: Wallpane ${{ github.ref_name }}
+          body: |
+            Per-display wallpaper setter for LMDE / Cinnamon.
+
+            - Assign a different image to each display
+            - Cover (short side), contain (long side), stretch, and center fit modes
+            - GUI with drag-and-drop; CLI `wallpane apply`
+
+            Download the AppImage from this release when the build job finishes, `chmod +x`, and run it on LMDE.
+
+  appimage:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, github-release]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: System deps
-        run: sudo apt-get update && sudo apt-get install -y libfuse2 file
+        run: sudo apt-get update && sudo apt-get install -y libfuse2 file curl
       - name: Build AppImage
         run: bash scripts/build-appimage.sh
-      - name: Upload
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: appimage
           path: dist/*.AppImage
-      - name: Release
+      - name: Attach AppImage to release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.AppImage

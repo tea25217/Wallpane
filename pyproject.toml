@@ -29,7 +29,8 @@ dev = ["pytest>=8.0"]
 wallpane = "wallpane.cli:main"
 
 [project.urls]
-Homepage = "https://github.com"
+Homepage = "https://github.com/tea25217/Wallpane"
+Issues = "https://github.com/tea25217/Wallpane/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,5 +1,7 @@
 # Wallpane
 
+[Releases](https://github.com/tea25217/Wallpane/releases)
+
 LMDE 7（Cinnamon 6.4）向けの、**ディスプレイごとに別々の壁紙**を設定するツールです。
 
 Cinnamon は壁紙 URI を1つしか持たないため、各ディスプレイ用の画像を仮想デスクトップサイズの1枚に合成し、`picture-options=spanned` で適用します。
@@ -47,17 +49,17 @@ python -m wallpane apply 'HDMI-1=~/Pictures/left.jpg:cover' 'DP-1=~/Pictures/rig
 
 ## AppImage
 
-**Linux 上**（glibc が LMDE 7 以下なら Ubuntu 22.04 が無難）で:
-
-```bash
-bash scripts/build-appimage.sh
-```
-
-成果物は `dist/Wallpane-0.1.0-x86_64.AppImage` です。LMDE では:
+[Releases](https://github.com/tea25217/Wallpane/releases) から `Wallpane-*-x86_64.AppImage` を入手できます。LMDE では:
 
 ```bash
 chmod +x Wallpane-*-x86_64.AppImage
 ./Wallpane-*-x86_64.AppImage
+```
+
+自分でビルドする場合は **Linux 上**（glibc が LMDE 7 以下なら Ubuntu 22.04 が無難）で:
+
+```bash
+bash scripts/build-appimage.sh
 ```
 
 FUSE が使えない場合は AppImage を `--appimage-extract` して中の `AppRun` を実行してください。
