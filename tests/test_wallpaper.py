@@ -3,6 +3,7 @@ import subprocess
 
 from PIL import Image
 
+from wallpane.hostcmd import sanitized_env
 from wallpane.wallpaper import apply_composed_image
 
 
@@ -34,6 +35,17 @@ def test_file_uri_is_absolute(tmp_path) -> None:
     assert os.path.basename(path) in uri
 
 
+def test_sanitized_env_drops_appimage_libraries(monkeypatch) -> None:
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/appimage-libs")
+    monkeypatch.setenv("GSETTINGS_SCHEMA_DIR", "/tmp/fake-schemas")
+    monkeypatch.setenv("PYTHONHOME", "/tmp/py")
+    env = sanitized_env()
+    assert "LD_LIBRARY_PATH" not in env
+    assert "GSETTINGS_SCHEMA_DIR" not in env
+    assert "PYTHONHOME" not in env
+    assert env["PATH"].startswith("/usr/bin:/bin:/usr/local/bin:")
+
+
 def test_apply_cinnamon_sets_spanned_uri(monkeypatch, tmp_path) -> None:
     from wallpane import wallpaper as wp
 
@@ -42,20 +54,39 @@ def test_apply_cinnamon_sets_spanned_uri(monkeypatch, tmp_path) -> None:
     image = tmp_path / "composed.png"
     Image.new("RGB", (4, 4), (10, 20, 30)).save(image)
 
+    stored: dict[tuple[str, str], str] = {}
     calls: list[list[str]] = []
 
-    def fake_run(cmd, check=False, capture_output=True, text=True):
-        calls.append(list(cmd))
-        return subprocess.CompletedProcess(cmd, 0, "", "")
+    def fake_which(name: str) -> str | None:
+        if name == "gsettings":
+            return "/usr/bin/gsettings"
+        return None
 
-    monkeypatch.setattr(wp.shutil, "which", lambda _: "/usr/bin/gsettings")
-    monkeypatch.setattr(wp.subprocess, "run", fake_run)
+    def fake_run(argv: list[str]) -> subprocess.CompletedProcess[str]:
+        calls.append(list(argv))
+        if len(argv) > 1 and argv[1] == "set":
+            stored[(argv[2], argv[3])] = argv[4]
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        if len(argv) > 1 and argv[1] == "get":
+            value = stored.get((argv[2], argv[3]), "")
+            return subprocess.CompletedProcess(argv, 0, f"'{value}'\n", "")
+        return subprocess.CompletedProcess(argv, 1, "", "unexpected")
+
+    monkeypatch.setattr(wp, "which_host", fake_which)
+    monkeypatch.setattr(wp, "run_host", fake_run)
+    monkeypatch.setattr(wp, "log_apply", lambda _message: None)
 
     apply_composed_image(image, fill_hex="#112233")
 
-    assert calls[0][:3] == ["gsettings", "set", "org.cinnamon.desktop.background"]
-    keys = {cmd[3]: cmd[4] for cmd in calls}
-    assert keys["picture-options"] == "spanned"
-    assert keys["primary-color"] == "#112233"
-    assert keys["picture-uri"].startswith("file://")
-    assert keys["picture-uri-dark"] == keys["picture-uri"]
+    schemas = {cmd[2] for cmd in calls if len(cmd) > 2}
+    assert "org.gnome.desktop.background" not in schemas
+    cinnamon_sets = {
+        cmd[3]: cmd[4]
+        for cmd in calls
+        if len(cmd) > 4 and cmd[1] == "set" and cmd[2] == "org.cinnamon.desktop.background"
+    }
+    assert cinnamon_sets["picture-options"] == "spanned"
+    assert cinnamon_sets["primary-color"] == "#112233"
+    assert cinnamon_sets["picture-uri"].startswith("file://")
+    assert cinnamon_sets["picture-uri-dark"] == cinnamon_sets["picture-uri"]
+    assert any(cmd[3] == "slideshow-enabled" and cmd[4] == "false" for cmd in calls if len(cmd) > 4)

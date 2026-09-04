@@ -18,7 +18,10 @@ class AppConfig:
         data: dict[str, object] = {"fill": self.fill, "assignments": {}}
         stored: dict[str, dict[str, str]] = {}
         for key, assignment in (self.assignments or {}).items():
-            stored[key] = {"path": str(assignment.path), "mode": assignment.mode.value}
+            stored[key] = {
+                "path": str(assignment.path),
+                "mode": parse_fit_mode(assignment.mode).value,
+            }
         data["assignments"] = stored
         return data
 
@@ -39,7 +42,7 @@ def load_config(path: Path = CONFIG_PATH) -> AppConfig:
         if not image.is_file():
             continue
         try:
-            mode = parse_fit_mode(str(value.get("mode", FitMode.COVER.value)))
+            mode = parse_fit_mode(value.get("mode", FitMode.COVER.value))
         except ValueError:
             mode = FitMode.COVER
         assignments[key] = Assignment(path=image, mode=mode)

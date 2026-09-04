@@ -8,6 +8,11 @@ HERE="${SELF%/*}"
 BIN="$HERE/usr/bin/wallpane"
 
 export QTWEBENGINE_DISABLE_SANDBOX=1
+# Cinnamon injects xapp-gtk3-module; the bundled GTK cannot load the host module.
+unset GTK_MODULES
+unset GTK3_MODULES
+# Host gvfs modules are built against a newer GLib than the AppImage bundle.
+export GIO_MODULE_DIR="${HERE}/usr/lib/gio/modules"
 
 for plugins in \
   "$HERE/usr/bin/_internal/PySide6/Qt/plugins" \
@@ -19,10 +24,6 @@ do
     break
   fi
 done
-
-if [ -d "$HERE/usr/bin/_internal" ]; then
-  export LD_LIBRARY_PATH="$HERE/usr/bin/_internal${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-fi
 
 # Cinnamon on LMDE defaults to X11. Do not override an explicit choice.
 if [ -z "${QT_QPA_PLATFORM:-}" ] && [ -n "${DISPLAY:-}" ]; then

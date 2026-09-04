@@ -16,12 +16,20 @@ def test_parse_fit_mode_aliases() -> None:
     assert parse_fit_mode("fit") is FitMode.CONTAIN
     assert parse_fit_mode("stretched") is FitMode.STRETCH
     assert parse_fit_mode("center") is FitMode.CENTER
+    assert parse_fit_mode(FitMode.COVER) is FitMode.COVER
+    assert parse_fit_mode("FitMode.cover") is FitMode.COVER
 
 
 def test_cover_crops_to_fill() -> None:
     src = _solid((10, 20), (255, 0, 0))
     out = fit_image(src, (10, 10), FitMode.COVER, fill=(0, 0, 0))
     assert out.size == (10, 10)
+    assert out.getpixel((5, 5)) == (255, 0, 0)
+
+
+def test_cover_accepts_qt_string_mode() -> None:
+    src = _solid((10, 20), (255, 0, 0))
+    out = fit_image(src, (10, 10), "cover", fill=(0, 0, 0))  # type: ignore[arg-type]
     assert out.getpixel((5, 5)) == (255, 0, 0)
 
 

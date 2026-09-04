@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
-import subprocess
 from typing import Callable
 
 from wallpane.compose import Monitor
+from wallpane.hostcmd import run_host, which_host
 
 LISTMONITORS_RE = re.compile(
     r"^\s*\d+:\s+\+?\*?(\S+)\s+(\d+)/\d+x(\d+)/\d+\+(-?\d+)\+(-?\d+)\s+(\S+)\s*$"
@@ -67,14 +66,14 @@ def parse_xrandr_query(text: str) -> list[Monitor]:
 
 
 def _run(cmd: list[str]) -> str:
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    result = run_host(cmd)
     if result.returncode != 0:
         raise DisplayError(result.stderr.strip() or f"{' '.join(cmd)} failed")
     return result.stdout
 
 
 def list_from_xrandr() -> list[Monitor]:
-    if os.name == "nt" or not shutil.which("xrandr"):
+    if os.name == "nt" or not which_host("xrandr"):
         raise DisplayError("xrandr is not available")
     try:
         monitors = parse_xrandr_listmonitors(_run(["xrandr", "--listmonitors"]))

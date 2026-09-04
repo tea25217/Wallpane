@@ -58,7 +58,7 @@ chmod +x Wallpane-*-x86_64.AppImage
 ./Wallpane-*-x86_64.AppImage
 ```
 
-Nemo からダブルクリックする場合は、プロパティ → 実行を許可、でも同じです。0.1.1 以降は LMDE 7 既定の FUSE 3 のみでも起動する想定です。失敗時は `~/.cache/wallpane/launch.log` を見てください。
+Nemo からダブルクリックする場合は、プロパティ → 実行を許可、でも同じです。0.1.1 以降は LMDE 7 既定の FUSE 3 のみでも起動する想定です。失敗時は `~/.cache/wallpane/launch.log` を見てください。壁紙が変わらない場合は 0.1.2 以降を使い、`~/.cache/wallpane/apply.log` も合わせて見てください。
 
 自分でビルドする場合は **Linux 上**（glibc が LMDE 7 以下なら Ubuntu 22.04 が無難）で:
 

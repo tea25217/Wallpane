@@ -28,7 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from wallpane.compose import Assignment, FitMode, Monitor, compose
+from wallpane.compose import Assignment, FitMode, Monitor, compose, parse_fit_mode
+from wallpane.hostcmd import log_apply
 from wallpane.config import AppConfig, load_config, save_config
 from wallpane.displays import DisplayError, list_monitors
 from wallpane.i18n import t
@@ -105,10 +106,10 @@ class MonitorCard(QFrame):
         self.preview.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         self.mode = QComboBox()
-        self.mode.addItem(t("mode_cover"), FitMode.COVER)
-        self.mode.addItem(t("mode_contain"), FitMode.CONTAIN)
-        self.mode.addItem(t("mode_stretch"), FitMode.STRETCH)
-        self.mode.addItem(t("mode_center"), FitMode.CENTER)
+        self.mode.addItem(t("mode_cover"), FitMode.COVER.value)
+        self.mode.addItem(t("mode_contain"), FitMode.CONTAIN.value)
+        self.mode.addItem(t("mode_stretch"), FitMode.STRETCH.value)
+        self.mode.addItem(t("mode_center"), FitMode.CENTER.value)
         self.mode.currentIndexChanged.connect(self._on_mode_changed)
 
         buttons = QHBoxLayout()
@@ -132,7 +133,10 @@ class MonitorCard(QFrame):
         layout.addLayout(buttons)
 
     def current_mode(self) -> FitMode:
-        return self.mode.currentData()
+        try:
+            return parse_fit_mode(self.mode.currentData() or FitMode.COVER.value)
+        except ValueError:
+            return FitMode.COVER
 
     def set_assignment(self, assignment: Assignment | None) -> None:
         self.assignment = assignment
@@ -153,7 +157,7 @@ class MonitorCard(QFrame):
                 )
             else:
                 self.preview.setText(assignment.path.name)
-            index = self.mode.findData(assignment.mode)
+            index = self.mode.findData(parse_fit_mode(assignment.mode).value)
             if index >= 0:
                 self.mode.blockSignals(True)
                 self.mode.setCurrentIndex(index)
@@ -372,9 +376,12 @@ class MainWindow(QMainWindow):
             self.assignments[key] = assignment
         self._persist()
 
-    def _on_mode_changed(self, key: str, mode: FitMode) -> None:
+    def _on_mode_changed(self, key: str, mode: object) -> None:
         if key in self.assignments:
-            self.assignments[key].mode = mode
+            try:
+                self.assignments[key].mode = parse_fit_mode(mode)
+            except ValueError:
+                self.assignments[key].mode = FitMode.COVER
             self._persist()
 
     def _apply_image_to_all(self, key: str) -> None:
@@ -388,8 +395,11 @@ class MainWindow(QMainWindow):
         self._persist()
 
     def _persist(self) -> None:
-        self.config = AppConfig(fill=self.fill_hex, assignments=dict(self.assignments))
-        save_config(self.config)
+        try:
+            self.config = AppConfig(fill=self.fill_hex, assignments=dict(self.assignments))
+            save_config(self.config)
+        except Exception as exc:
+            self.statusBar().showMessage(str(exc))
 
     def pick_fill_color(self) -> None:
         color = QColorDialog.getColor(QColor(self.fill_hex), self, t("fill_color"))
@@ -437,6 +447,7 @@ class MainWindow(QMainWindow):
         dialog.show()
 
     def apply_wallpaper(self) -> None:
+        log_apply("gui apply clicked")
         image = self._compose()
         if image is None:
             return
@@ -450,6 +461,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, t("app_name"), f"{t('not_linux')}\n\n{dest}")
             else:
                 QMessageBox.critical(self, t("app_name"), f"{t('apply_failed')}\n{exc}")
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, t("app_name"), f"{t('apply_failed')}\n{exc}")
             return
         self.statusBar().showMessage(t("applied"))
 

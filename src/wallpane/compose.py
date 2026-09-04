@@ -39,8 +39,13 @@ class Assignment:
     mode: FitMode = FitMode.COVER
 
 
-def parse_fit_mode(value: str) -> FitMode:
-    normalized = value.strip().lower().replace("-", "_")
+def parse_fit_mode(value: object) -> FitMode:
+    if isinstance(value, FitMode):
+        return value
+    raw = getattr(value, "value", value)
+    normalized = str(raw).strip().lower().replace("-", "_")
+    if "." in normalized:
+        normalized = normalized.rsplit(".", 1)[-1]
     aliases = {
         "zoom": FitMode.COVER,
         "fill": FitMode.COVER,
@@ -83,15 +88,17 @@ def fit_image(
     canvas = Image.new("RGB", (dest_w, dest_h), fill)
     src_w, src_h = rgb.size
 
-    if mode is FitMode.STRETCH:
+    mode = parse_fit_mode(mode)
+
+    if mode == FitMode.STRETCH:
         canvas.paste(rgb.resize((dest_w, dest_h), Image.Resampling.LANCZOS), (0, 0))
         return canvas
 
-    if mode is FitMode.CENTER:
+    if mode == FitMode.CENTER:
         canvas.paste(rgb, ((dest_w - src_w) // 2, (dest_h - src_h) // 2))
         return canvas
 
-    if mode is FitMode.COVER:
+    if mode == FitMode.COVER:
         scale = max(dest_w / src_w, dest_h / src_h)
     else:
         scale = min(dest_w / src_w, dest_h / src_h)
@@ -125,6 +132,11 @@ def compose(
         if assignment is None:
             continue
         with Image.open(assignment.path) as opened:
-            fitted = fit_image(opened, (monitor.width, monitor.height), assignment.mode, fill)
+            fitted = fit_image(
+                opened,
+                (monitor.width, monitor.height),
+                parse_fit_mode(assignment.mode),
+                fill,
+            )
         canvas.paste(fitted, (monitor.x - min_x, monitor.y - min_y))
     return canvas

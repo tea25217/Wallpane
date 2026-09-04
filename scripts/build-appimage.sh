@@ -41,7 +41,8 @@ rm -rf AppDir
 mkdir -p \
   AppDir/usr/bin \
   AppDir/usr/share/applications \
-  AppDir/usr/share/icons/hicolor/256x256/apps
+  AppDir/usr/share/icons/hicolor/256x256/apps \
+  AppDir/usr/lib/gio/modules
 
 cp -a dist/wallpane/. AppDir/usr/bin/
 chmod +x AppDir/usr/bin/wallpane
