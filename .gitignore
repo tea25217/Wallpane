@@ -19,3 +19,14 @@ appimagetool*.AppImage
 .idea/
 .vscode/
 *.spec.bak
+.env
+.env.*
+!.env.example
+credentials.json
+secrets.json
+*.pem
+*.p12
+*.pfx
+*.key
+id_rsa
+id_ed25519

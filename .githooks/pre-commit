@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Fail the commit if staged files look like secrets or personal data.
+repo_root="$(git rev-parse --show-toplevel)"
+exec "$repo_root/scripts/scan-secrets.sh" --staged

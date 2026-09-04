@@ -1,0 +1,60 @@
+title = "Wallpane"
+
+[extend]
+useDefault = true
+
+# Ignore the scanner script (it contains example secret regexes) and lockfiles.
+prefilter = '''
+filter.matchesAny(get(attributes, "path", ""), [
+  `(^|/)scripts/scan-secrets\.sh$`
+])
+'''
+
+# Commit metadata already contains the public author identity. Allowlisting
+# these addresses keeps `betterleaks git` from failing on every commit; do not
+# add new personal inboxes here.
+filter = '''
+filter.containsAny(finding["secret"], [
+  "tea25217@users.noreply.github.com",
+  "yrberrytea@gmail.com"
+])
+'''
+
+[[rules]]
+id = "dotenv-assignment"
+description = "Possible secret assignment in a dotenv file"
+regex = '''(?i)(?:secret|token|password|api[_-]?key|private[_-]?key)\s*=\s*\S+'''
+keywords = ["secret", "token", "password", "api_key", "apikey", "private_key"]
+filter = '''
+!filter.matchesAny(get(attributes, "path", ""), [`(^|/)\.env($|\.)`])
+'''
+
+[[rules]]
+id = "credential-filename"
+description = "Credential or key file"
+regex = '''.'''
+keywords = ["-----", "BEGIN", "key", "secret", "token"]
+filter = '''
+!filter.matchesAny(get(attributes, "path", ""), [
+  `(?i)(^|/)(credentials\.json|secrets\.json|id_rsa|id_ed25519)$`,
+  `(?i)\.(?:pem|p12|pfx)$`
+])
+'''
+
+[[rules]]
+id = "jp-phone-number"
+description = "Japanese phone number next to a personal-data label"
+regex = '''(?i)(?:電話|携帯|スマホ|mobile|tel|phone)[^\n]{0,24}(0[789]0-?\d{4}-?\d{4}|0\d{1,4}-?\d{1,4}-\d{4})'''
+keywords = ["電話", "携帯", "スマホ", "mobile", "tel", "phone"]
+
+[[rules]]
+id = "email-assignment"
+description = "Email assigned in config or environment-like text"
+regex = '''(?i)(?:email|e-mail|mail_address|メール)['"\s:=]+[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}'''
+keywords = ["email", "e-mail", "mail_address", "メール"]
+
+[[rules]]
+id = "windows-user-path"
+description = "Windows user profile path (often embeds a local account name)"
+regex = '''(?i)(?:C:\\Users\\|C:/Users/)[^\\/\s"'`]+'''
+keywords = ["C:\\Users", "C:/Users"]

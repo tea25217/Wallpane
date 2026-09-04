@@ -85,6 +85,13 @@ FUSE が使えない場合は AppImage を `--appimage-extract` して中の `Ap
 python -m pytest -q
 ```
 
+秘密情報・個人情報の混入は [Betterleaks](https://github.com/betterleaks/betterleaks) で push / PR 時にスキャンします。クローン後、ローカル hook を有効化するには:
+
+```bash
+bash scripts/install-git-hooks.sh
+# Windows: powershell -File scripts/install-git-hooks.ps1
+```
+
 GUI の見た目は Windows 上でも確認できます。壁紙の適用そのものは Linux / Cinnamon セッションでのみ行います。
 
 対象は LMDE 7 の既定である **Cinnamon + X11** です。Cinnamon の実験的 Wayland は、ディスプレイ検出が Qt 経由のベストエフォートになります。
